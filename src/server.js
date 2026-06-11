@@ -4,11 +4,30 @@ const fs = require("fs");
 const http = require("http");
 const https = require("https");
 const { URL } = require("url");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const Database = require("./services/database");
 const statsRouter = require("./routes/stats");
 
 const app = express();
 const PORT = process.env.PORT || 8084;
+
+// Trust proxy for Vercel deployment rate limiting
+app.set('trust proxy', 1);
+
+// Security Headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled to allow external streams and CDNs (Tailwind, Video.js)
+  crossOriginEmbedderPolicy: false // Disabled for external media
+}));
+
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // limit each IP to 200 requests per windowMs
+  message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+app.use(limiter);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
