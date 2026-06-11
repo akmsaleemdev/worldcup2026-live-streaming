@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// NOTE: We are using sqlite for initial development as per Phase 1. 
+// To deploy to Vercel with Postgres, change this provider to "postgresql"
+datasource db {
+  provider = "sqlite"
+}
+
+// ==========================================
+// USER & AUTHENTICATION
+// ==========================================
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(USER)
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  comments      Comment[]
+  votes         StreamVote[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+// ==========================================
+// TOURNAMENT & TEAMS
+// ==========================================
+model Team {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  shortName   String?
+  logoUrl     String?
+  group       String?  // e.g. "Group A"
+  coach       String?
+  founded     Int?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  homeMatches Match[]  @relation("HomeTeam")
+  awayMatches Match[]  @relation("AwayTeam")
+  players     Player[]
+  standings   Standing[]
+}
+
+model Player {
+  id          String   @id @default(cuid())
+  teamId      String
+  name        String
+  number      Int?
+  position    String?
+  age         Int?
+  photoUrl    String?
+  goals       Int      @default(0)
+  assists     Int      @default(0)
+  yellowCards Int      @default(0)
+  redCards    Int      @default(0)
+
+  team        Team     @relation(fields: [teamId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Standing {
+  id           String @id @default(cuid())
+  teamId       String
+  groupId      String
+  played       Int    @default(0)
+  won          Int    @default(0)
+  drawn        Int    @default(0)
+  lost         Int    @default(0)
+  goalsFor     Int    @default(0)
+  goalsAgainst Int    @default(0)
+  points       Int    @default(0)
+
+  team         Team   @relation(fields: [teamId], references: [id])
+  
+  @@unique([teamId, groupId])
+}
+
+// ==========================================
+// MATCHES & STREAMS
+// ==========================================
+model Match {
+  id           String   @id @default(cuid())
+  homeTeamId   String
+  awayTeamId   String
+  matchDate    DateTime
+  status       String   @default("upcoming") // upcoming, live, completed, postponed
+  homeScore    Int?
+  awayScore    Int?
+  stadium      String?
+  referee      String?
+  stage        String?  // e.g. "Group Stage", "Round of 16"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  homeTeam     Team     @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam     Team     @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  streams      Stream[]
+  events       MatchEvent[]
+}
+
+model MatchEvent {
+  id          String   @id @default(cuid())
+  matchId     String
+  minute      Int
+  type        String   // goal, card, sub
+  description String
+  createdAt   DateTime @default(now())
+
+  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+}
+
+model Stream {
+  id          String   @id @default(cuid())
+  matchId     String
+  sourceName  String
+  streamUrl   String
+  quality     String   @default("1080p")
+  language    String   @default("EN")
+  type        String   @default("hls") // hls, dash, embed
+  isWorking   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  votes       StreamVote[]
+}
+
+model StreamVote {
+  id        String   @id @default(cuid())
+  streamId  String
+  userId    String?  // Optional for anonymous voting
+  value     Int      // 1 for up, -1 for down
+  createdAt DateTime @default(now())
+
+  stream    Stream   @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+// ==========================================
+// NEWS & CONTENT (CMS)
+// ==========================================
+model Article {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  excerpt     String?
+  content     String
+  imageUrl    String?
+  authorId    String?
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // SEO & AEO Fields
+  metaTitle   String?
+  metaDesc    String?
+  keywords    String?
+  schemaJson  String?  // JSON string for structured data
+
+  categories  Category[]
+  tags        Tag[]
+  comments    Comment[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  articles    Article[]
+}
+
+model Tag {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  articles    Article[]
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  content     String
+  articleId   String
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+// ==========================================
+// SYSTEM (ADS, SEO, SETTINGS)
+// ==========================================
+model Advertisement {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // banner, video, popup
+  slotId      String?  // Google AdSense slot
+  imageUrl    String?
+  linkUrl     String?
+  position    String   // header, sidebar, footer, player
+  isActive    Boolean  @default(true)
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
