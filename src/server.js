@@ -19,12 +19,12 @@ app.use(express.json());
 const TEAM_ALIAS = {
   'South Korea': 'Korea Republic',
   'Czech Republic': 'Czechia',
-  'T\u00fcrkiye': 'T\u00fcrkiye',
+  'Türkiye': 'Türkiye',
 };
 
 // Build match odds lookup (keyed by both orderings)
-const ODDS_FILE = '/root/football-stream/data/poly-match-odds.json';
-const polyMatchOdds = {};
+const ODDS_FILE = path.join(__dirname, '../data/poly-match-odds.json');
+let polyMatchOdds = {};
 try {
   const raw = fs.readFileSync(ODDS_FILE, 'utf8');
   const data = JSON.parse(raw);
@@ -36,18 +36,30 @@ try {
     // Also key by swapped (for lookup when DB order differs)
     polyMatchOdds[`${away} vs ${home}`] = o;
   }
-  console.log(`\uD83D\uDCCA Loaded match odds for ${Object.keys(data.odds || {}).length} matches`);
+  console.log(`📊 Loaded match odds for ${Object.keys(data.odds || {}).length} matches`);
 } catch (e) {
-  console.log('\u26A0\uFE0F  No match odds cache found, run: node scripts/fetch-poly-match-odds.js');
+  console.log('⚠️  No match odds cache found, run: node scripts/fetch-poly-match-odds.js');
 }
 
-// Refresh odds cache from Polymarket (call this periodically)
+// Refresh odds cache (graceful: works locally, no-op on serverless)
 async function refreshMatchOdds() {
-  const { spawn } = require('child_process');
-  return new Promise((resolve) => {
-    const child = spawn('node', [path.join(__dirname, '../scripts/fetch-poly-match-odds.js')], { detached: true });
-    child.on('close', resolve);
-  });
+  try {
+    const raw = fs.readFileSync(ODDS_FILE, 'utf8');
+    const data = JSON.parse(raw);
+    const newOdds = {};
+    for (const [slug, o] of Object.entries(data.odds || {})) {
+      const home = o.home, away = o.away;
+      if (home && away) {
+        newOdds[`${home} vs ${away}`] = o;
+        newOdds[`${away} vs ${home}`] = o;
+      }
+    }
+    polyMatchOdds = newOdds;
+    return true;
+  } catch (e) {
+    console.log('⚠️  Could not refresh odds:', e.message);
+    return false;
+  }
 }
 
 // Home - Live + Upcoming + Match Odds
@@ -129,6 +141,17 @@ app.post('/api/report', (req, res) => {
   }
 });
 
+// API: Get WC 2026 winner odds (from local cache)
+app.get('/api/odds', (req, res) => {
+  try {
+    const raw = fs.readFileSync(path.join(__dirname, '../data/poly-odds.json'), 'utf8');
+    const data = JSON.parse(raw);
+    res.json(data);
+  } catch (err) {
+    res.json({ odds: {}, updatedAt: null, source: 'polymarket', error: 'No odds data available' });
+  }
+});
+
 // API: Get WC 2026 match odds (from local cache, refreshed hourly)
 app.get('/api/odds/match', (req, res) => {
   try {
@@ -143,22 +166,8 @@ app.get('/api/odds/match', (req, res) => {
 // API: Force refresh odds from Polymarket
 app.get('/api/odds/refresh', async (req, res) => {
   try {
-    await refreshMatchOdds();
-    // Reload cache
-    try {
-      const raw = fs.readFileSync(ODDS_FILE, 'utf8');
-      const data = JSON.parse(raw);
-      const newOdds = {};
-      for (const [slug, o] of Object.entries(data.odds || {})) {
-        const home = o.home, away = o.away;
-        if (home && away) {
-          newOdds[`${home} vs ${away}`] = o;
-          newOdds[`${away} vs ${home}`] = o;
-        }
-      }
-      polyMatchOdds = newOdds;
-    } catch (e) { /* ignore */ }
-    res.json({ success: true, message: 'Odds refreshed' });
+    const success = await refreshMatchOdds();
+    res.json({ success, message: success ? 'Odds refreshed from cache' : 'Could not refresh' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -255,9 +264,15 @@ console.log('📡 HLS proxy enabled at /proxy?url=...');
 // Initialize database
 Database.init();
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Football Stream running on port ${PORT}`);
-  console.log(`📺 Live + Upcoming (7 days)`);
-  console.log(`📊 Stats: http://localhost:${PORT}/stats`);
-  console.log(`🔗 http://localhost:${PORT}`);
-});
+// Export for Vercel serverless
+module.exports = app;
+
+// Start server only when run directly (not when imported by Vercel)
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Football Stream running on port ${PORT}`);
+    console.log(`📺 Live + Upcoming (7 days)`);
+    console.log(`📊 Stats: http://localhost:${PORT}/stats`);
+    console.log(`🔗 http://localhost:${PORT}`);
+  });
+}

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "build": "echo 'Build complete'",
     "db:init": "node scripts/init-db.js",
     "fetch": "node scripts/fetch-real-fixtures.js",
     "docker:build": "docker build -t football-stream .",
@@ -14,12 +15,10 @@
     "test": "echo \"Tests coming soon\" && exit 0"
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.1",
     "ejs": "^3.1.10",
     "express": "^4.22.2",
     "express-rate-limit": "^7.5.1",
-    "node-fetch": "^2.7.0",
-    "video.js": "^8.23.7"
+    "node-fetch": "^2.7.0"
   },
   "keywords": [
     "football",
