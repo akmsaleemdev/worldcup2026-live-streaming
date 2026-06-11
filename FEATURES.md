@@ -241,9 +241,9 @@ pm2 start src/server.js --name football-stream
 
 ## 📞 Support
 
-**Issues:** https://github.com/tiarh/football-stream/issues  
-**Discussions:** https://github.com/tiarh/football-stream/discussions  
-**Email:** tiar@lumayancuk.com
+**Issues:** https://github.com/akmsaleemdev/worldcup2026-live-streaming/issues  
+**Discussions:** https://github.com/akmsaleemdev/worldcup2026-live-streaming/discussions  
+**Email:** saleem@intellvox.com
 
 ---
 
@@ -251,6 +251,6 @@ pm2 start src/server.js --name football-stream
 
 **Built with ❤️ and zero fake fixtures**
 
-[⭐ Star on GitHub](https://github.com/tiarh/football-stream)
+[⭐ Star on GitHub](https://github.com/akmsaleemdev/worldcup2026-live-streaming)
 
 </div>

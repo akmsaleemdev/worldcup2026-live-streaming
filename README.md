@@ -6,7 +6,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![Status](https://img.shields.io/badge/status-production-green)]()
-[![Stars](https://img.shields.io/github/stars/tiarh/football-stream?style=social)](https://github.com/tiarh/football-stream)
+[![Stars](https://img.shields.io/github/stars/akmsaleemdev/worldcup2026-live-streaming?style=social)](https://github.com/akmsaleemdev/worldcup2026-live-streaming)
 
 ---
 
@@ -86,7 +86,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/tiarh/football-stream.git
+git clone https://github.com/akmsaleemdev/worldcup2026-live-streaming.git
 cd football-stream
 
 # Build and run with Docker Compose
@@ -99,7 +99,7 @@ docker-compose up -d
 
 ```bash
 # Clone repository
-git clone https://github.com/tiarh/football-stream.git
+git clone https://github.com/akmsaleemdev/worldcup2026-live-streaming.git
 cd football-stream
 
 # Install dependencies
@@ -298,9 +298,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues:** [GitHub Issues](https://github.com/tiarh/football-stream/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/tiarh/football-stream/discussions)
-- **Email:** tiar@lumayancuk.com
+- **Issues:** [GitHub Issues](https://github.com/akmsaleemdev/worldcup2026-live-streaming/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/akmsaleemdev/worldcup2026-live-streaming/discussions)
+- **Email:** saleem@intellvox.com
 
 ---
 
@@ -308,7 +308,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 > "Tired of fake streaming sites with abal-abal fixtures? So was I. Football Stream shows **only real matches** from verified APIs. No bullshit, no fake Spain vs Portugal in 2026. Just honest football streaming."
 
-**Built with ❤️ by [@tiarh](https://github.com/tiarh)**
+**Project Developed By [Muhammed Saleem](https://github.com/akmsaleemdev)**
 
 ---
 
@@ -316,7 +316,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **If you like this project, please ⭐ star this repo!**
 
-[![GitHub stars](https://img.shields.io/github/stars/tiarh/football-stream?style=social)](https://github.com/tiarh/football-stream/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/tiarh/football-stream?style=social)](https://github.com/tiarh/football-stream/network/members)
+[![GitHub stars](https://img.shields.io/github/stars/akmsaleemdev/worldcup2026-live-streaming?style=social)](https://github.com/akmsaleemdev/worldcup2026-live-streaming/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/akmsaleemdev/worldcup2026-live-streaming?style=social)](https://github.com/akmsaleemdev/worldcup2026-live-streaming/network/members)
 
 </div>
