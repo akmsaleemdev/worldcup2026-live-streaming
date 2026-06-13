@@ -1,22 +1,55 @@
 @import "tailwindcss";
 
+/*
+ * KOORAKIT design tokens (Req 7.2, 7.3, 7.4).
+ * Dark-first palette derived from the official KOORAKIT logo.
+ * Raw brand tokens live as --kk-* custom properties; semantic Tailwind
+ * theme colors below reference them via var() so utilities (bg-, text-,
+ * border-) resolve to KOORAKIT colors and stay forward-compatible with
+ * a future light theme (Tier 3, task 18.1) that re-declares --kk-* values.
+ */
 @theme inline {
-  --color-background: #050B16;
-  --color-surface: #0F172A;
-  --color-primary: #00D4FF;
-  --color-secondary: #00FFB3;
-  --color-accent: #FFD700;
+  --color-background: var(--kk-bg);
+  --color-surface: var(--kk-bg-elevated);
+  --color-primary: var(--kk-accent);
+  --color-accent: var(--kk-accent);
+  --color-accent-strong: var(--kk-accent-strong);
+  --color-secondary: var(--kk-accent-strong);
+  --color-foreground: var(--kk-text);
+  --color-foreground-strong: var(--kk-text-strong);
+  --color-link: var(--kk-link);
   --color-success: #22C55E;
   --color-danger: #EF4444;
-  --color-foreground: #FFFFFF;
 
   --font-sans: "Inter", var(--font-geist-sans), sans-serif;
   --font-orbitron: "Orbitron", sans-serif;
 }
 
+/*
+ * Raw KOORAKIT brand tokens. Dark is the default theme, applied at :root and
+ * mirrored on the dark selectors so ThemeProvider's data-theme/class hooks
+ * resolve identically (no flash, no hydration mismatch).
+ */
+:root,
+[data-theme="dark"],
+.dark {
+  /* Backgrounds — Deep Navy / Royal Blue */
+  --kk-bg: #0A1A3F;          /* base background / crest base */
+  --kk-bg-elevated: #14264F; /* cards, panels */
+  /* Accent — Gold / Champagne */
+  --kk-accent: #D4AF37;        /* primary accent, wordmark, CTAs */
+  --kk-accent-strong: #C9A227; /* hover/active accent */
+  /* Text — Silver / White */
+  --kk-text: #E8EAED;        /* body text (AA on --kk-bg) */
+  --kk-text-strong: #FFFFFF; /* headings, globe highlights */
+  /* Interactive — Bright Blue */
+  --kk-link: #1E40AF;        /* links, ribbon highlights, interactive */
+}
+
 :root {
   background-color: var(--color-background);
   color: var(--color-foreground);
+  color-scheme: dark;
 }
 
 body {
@@ -27,9 +60,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glassmorphism utility */
+/* Glassmorphism utility — navy base to match KOORAKIT surfaces */
 .glass {
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(20, 38, 79, 0.4);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -52,5 +85,5 @@ html {
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
+  background: var(--color-accent);
 }

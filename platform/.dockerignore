@@ -1,0 +1,36 @@
+# Dependencies (reinstalled inside the image)
+node_modules
+.pnp
+.pnp.*
+
+# Build / cache output
+.next
+out
+build
+coverage
+*.tsbuildinfo
+
+# Local env and secrets (provided at runtime via env_file / -e)
+.env
+.env.*
+
+# Local databases / dev artifacts
+dev.db
+*.db
+
+# VCS, IDE, and tooling
+.git
+.gitignore
+.vscode
+.idea
+
+# Specs, docs, and agent files not needed in the runtime image
+.kiro
+*.md
+
+# OS / logs
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

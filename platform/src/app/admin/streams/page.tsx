@@ -1,92 +1,83 @@
-import { Plus, Search, Tv, CheckCircle2, XCircle } from "lucide-react";
+/**
+ * Stream source management console (Req 2.1, 2.2, 2.4, 2.5, 2.6, 21.3).
+ *
+ * Server component. Loads every `StreamSource` (with its match + teams) and
+ * the set of matches available for assignment, serializes them to plain
+ * objects, and hands them to the `StreamManager` client island which renders
+ * the grouped table, CRUD form, and on-demand health probes.
+ *
+ * Always dynamic: the admin needs the freshest persisted health verdict and
+ * mutations call `router.refresh()` to re-read this page.
+ */
+import { prisma } from "@/lib/db";
 
-export default function StreamsAdmin() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Stream Management</h1>
-          <p className="text-slate-400 mt-1">Manage IPTV sources, monitor health, and assign streams to matches.</p>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#00FFB3] hover:bg-[#00FFB3]/80 text-slate-900 font-semibold rounded-lg transition-colors">
-          <Plus className="w-5 h-5" />
-          Add Stream
-        </button>
-      </div>
+import {
+  StreamManager,
+  type MatchOption,
+  type StreamSourceRow,
+} from "./StreamManager";
 
-      <div className="glass rounded-xl border border-white/5 overflow-hidden">
-        {/* Table Toolbar */}
-        <div className="p-4 border-b border-white/5 flex gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search source names or URLs..." 
-              className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-[#00FFB3] transition-colors"
-            />
-          </div>
-        </div>
+export const dynamic = "force-dynamic";
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-900/80 text-slate-400 text-sm border-b border-white/5">
-                <th className="p-4 font-medium">Source</th>
-                <th className="p-4 font-medium">Assigned Match</th>
-                <th className="p-4 font-medium">Quality/Lang</th>
-                <th className="p-4 font-medium">Status</th>
-                <th className="p-4 font-medium">Community Votes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              <tr className="hover:bg-white/[0.02] transition-colors group">
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white/5 rounded-lg text-[#00FFB3]"><Tv className="w-4 h-4" /></div>
-                    <div>
-                      <div className="font-semibold text-white">Red Bull TV (Global)</div>
-                      <div className="text-xs text-slate-500 font-mono mt-0.5 truncate max-w-[200px]">https://rbmn-live.akamaized.net/...</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4 text-slate-300">Brazil vs Argentina</td>
-                <td className="p-4">
-                  <span className="text-xs text-slate-300 bg-slate-800 px-2 py-1 rounded">1080p</span>
-                  <span className="text-xs text-slate-300 bg-slate-800 px-2 py-1 rounded ml-2">EN</span>
-                </td>
-                <td className="p-4">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-                    <CheckCircle2 className="w-3 h-3" /> Healthy
-                  </span>
-                </td>
-                <td className="p-4 text-slate-300">+142 Votes</td>
-              </tr>
-              <tr className="hover:bg-white/[0.02] transition-colors group">
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white/5 rounded-lg text-slate-400"><Tv className="w-4 h-4" /></div>
-                    <div>
-                      <div className="font-semibold text-white">Unknown Scrape</div>
-                      <div className="text-xs text-slate-500 font-mono mt-0.5 truncate max-w-[200px]">http://spam-stream.com/live...</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4 text-slate-300">France vs England</td>
-                <td className="p-4">
-                  <span className="text-xs text-slate-300 bg-slate-800 px-2 py-1 rounded">720p</span>
-                </td>
-                <td className="p-4">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
-                    <XCircle className="w-3 h-3" /> Broken (Offline)
-                  </span>
-                </td>
-                <td className="p-4 text-red-400">-56 Votes (Reported)</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+/** Team selection shared by the match-label query fragments. */
+const teamSelect = { select: { name: true, shortName: true } } as const;
+
+interface TeamLabel {
+  name: string;
+  shortName: string | null;
+}
+
+/** Build a compact "Home vs Away" label, preferring short names. */
+function matchLabel(
+  home: TeamLabel | null | undefined,
+  away: TeamLabel | null | undefined,
+): string {
+  const homeName = home?.shortName ?? home?.name ?? "TBD";
+  const awayName = away?.shortName ?? away?.name ?? "TBD";
+  return `${homeName} vs ${awayName}`;
+}
+
+export default async function StreamsAdminPage() {
+  const [sources, matches] = await Promise.all([
+    prisma.streamSource.findMany({
+      orderBy: [{ matchId: "asc" }, { priority: "asc" }],
+      include: {
+        match: {
+          include: { homeTeam: teamSelect, awayTeam: teamSelect },
+        },
+      },
+    }),
+    prisma.match.findMany({
+      orderBy: { matchDate: "asc" },
+      include: { homeTeam: teamSelect, awayTeam: teamSelect },
+    }),
+  ]);
+
+  const matchOptions: MatchOption[] = matches.map((m) => ({
+    id: m.id,
+    label: matchLabel(m.homeTeam, m.awayTeam),
+  }));
+
+  const labelById = new Map(matchOptions.map((o) => [o.id, o.label]));
+
+  const rows: StreamSourceRow[] = sources.map((s) => ({
+    id: s.id,
+    matchId: s.matchId,
+    matchLabel: s.match
+      ? matchLabel(s.match.homeTeam, s.match.awayTeam)
+      : (labelById.get(s.matchId) ?? "Unknown match"),
+    sourceName: s.sourceName,
+    streamUrl: s.streamUrl,
+    quality: s.quality,
+    language: s.language,
+    type: s.type,
+    priority: s.priority,
+    active: s.active,
+    legallyPermitted: s.legallyPermitted,
+    healthy: s.healthy,
+    lastStatus: s.lastStatus,
+    lastCheckedAt: s.lastCheckedAt ? s.lastCheckedAt.toISOString() : null,
+  }));
+
+  return <StreamManager rows={rows} matchOptions={matchOptions} />;
 }

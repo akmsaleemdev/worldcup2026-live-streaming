@@ -1,68 +1,156 @@
-import { Activity, Users, Video, Eye } from "lucide-react";
+/**
+ * Admin dashboard (server component) — Req 6.1.
+ *
+ * Summarizes platform counts pulled live from the database: streaming sources
+ * (active vs. total), registered users, published/total articles, and matches
+ * (live vs. total). All counts are gathered in parallel.
+ *
+ * Empty-database handling: `count` naturally returns 0 for an empty table, so
+ * a fresh install renders zeros rather than crashing. As an additional
+ * safeguard, the aggregation is wrapped so that a transient datastore error
+ * degrades to zeroed cards plus a non-blocking notice instead of throwing.
+ */
+import { Activity, FileText, Tv, Users, type LucideIcon } from "lucide-react";
 
-export default function AdminDashboard() {
+import { prisma } from "@/lib/db";
+
+// Always render fresh counts; never serve stale cached numbers.
+export const dynamic = "force-dynamic";
+
+type DashboardStats = {
+  activeStreams: number;
+  totalStreams: number;
+  users: number;
+  articles: number;
+  liveMatches: number;
+  totalMatches: number;
+};
+
+const EMPTY_STATS: DashboardStats = {
+  activeStreams: 0,
+  totalStreams: 0,
+  users: 0,
+  articles: 0,
+  liveMatches: 0,
+  totalMatches: 0,
+};
+
+async function getDashboardStats(): Promise<{
+  stats: DashboardStats;
+  ok: boolean;
+}> {
+  try {
+    const [
+      activeStreams,
+      totalStreams,
+      users,
+      articles,
+      liveMatches,
+      totalMatches,
+    ] = await Promise.all([
+      prisma.streamSource.count({ where: { active: true } }),
+      prisma.streamSource.count(),
+      prisma.user.count(),
+      prisma.article.count(),
+      prisma.match.count({ where: { status: "LIVE" } }),
+      prisma.match.count(),
+    ]);
+
+    return {
+      stats: {
+        activeStreams,
+        totalStreams,
+        users,
+        articles,
+        liveMatches,
+        totalMatches,
+      },
+      ok: true,
+    };
+  } catch {
+    // Datastore unavailable: degrade gracefully rather than crash the console.
+    return { stats: EMPTY_STATS, ok: false };
+  }
+}
+
+export default async function AdminDashboard() {
+  const { stats, ok } = await getDashboardStats();
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Dashboard Overview</h1>
-        <p className="text-slate-400 mt-1">Real-time metrics and platform analytics.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          Dashboard Overview
+        </h1>
+        <p className="mt-1 text-foreground/60">
+          Streaming, content, and match activity at a glance.
+        </p>
       </div>
 
-      {/* KPI Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Views" value="2.4M" change="+14%" icon={<Eye className="text-[#00D4FF]" />} />
-        <StatCard title="Active Streams" value="84" change="+2" icon={<Video className="text-[#00FFB3]" />} />
-        <StatCard title="Registered Users" value="142K" change="+12%" icon={<Users className="text-[#FFD700]" />} />
-        <StatCard title="System Load" value="24%" change="-5%" icon={<Activity className="text-[#22C55E]" />} />
-      </div>
+      {!ok && (
+        <div className="rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+          Live metrics are temporarily unavailable. Showing zeros until the data
+          source responds.
+        </div>
+      )}
 
-      {/* Placeholder for Charts / Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 glass rounded-xl p-6 border border-white/5">
-          <h3 className="text-lg font-semibold mb-4 text-slate-200">Viewership Trends</h3>
-          <div className="h-64 flex items-center justify-center border border-dashed border-white/10 rounded-lg">
-            <span className="text-slate-500">Analytics Chart Placeholder (GA4 Integration)</span>
-          </div>
-        </div>
-        <div className="glass rounded-xl p-6 border border-white/5">
-          <h3 className="text-lg font-semibold mb-4 text-slate-200">Recent Stream Reports</h3>
-          <div className="space-y-4">
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-sm font-medium text-red-400">Broken Stream Reported</p>
-              <p className="text-xs text-slate-400 mt-1">Match #42 - Red Bull TV</p>
-            </div>
-            <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
-              <p className="text-sm font-medium text-slate-300">New User Registered</p>
-              <p className="text-xs text-slate-500 mt-1">2 minutes ago</p>
-            </div>
-            <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
-              <p className="text-sm font-medium text-slate-300">Stream Added</p>
-              <p className="text-xs text-slate-500 mt-1">FIFA+ (FAST UK) assigned to Match #12</p>
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Live Streams"
+          value={stats.activeStreams}
+          subtitle={`${stats.totalStreams} total sources`}
+          icon={Tv}
+        />
+        <StatCard
+          title="Matches Live"
+          value={stats.liveMatches}
+          subtitle={`${stats.totalMatches} total matches`}
+          icon={Activity}
+        />
+        <StatCard
+          title="Registered Users"
+          value={stats.users}
+          subtitle="Total accounts"
+          icon={Users}
+        />
+        <StatCard
+          title="Articles"
+          value={stats.articles}
+          subtitle="Total content items"
+          icon={FileText}
+        />
       </div>
     </div>
   );
 }
 
-function StatCard({ title, value, change, icon }: { title: string; value: string; change: string; icon: React.ReactNode }) {
-  const isPositive = change.startsWith("+");
+function StatCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+}: {
+  title: string;
+  value: number;
+  subtitle: string;
+  icon: LucideIcon;
+}) {
   return (
-    <div className="glass p-6 rounded-xl border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
-      <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-        <div className="w-24 h-24">{icon}</div>
+    <div className="group relative overflow-hidden rounded-xl border border-accent/15 bg-surface/60 p-6 transition-colors hover:border-accent/30">
+      <div className="absolute -right-4 -top-4 opacity-5 transition-transform duration-500 group-hover:scale-110">
+        <Icon className="h-24 w-24 text-accent" />
       </div>
-      <div className="flex items-center justify-between mb-4 relative z-10">
-        <h3 className="text-sm font-medium text-slate-400">{title}</h3>
-        <div className="p-2 bg-white/5 rounded-lg">{icon}</div>
+      <div className="relative z-10 mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-medium text-foreground/60">{title}</h3>
+        <div className="rounded-lg bg-accent/10 p-2">
+          <Icon className="h-5 w-5 text-accent" />
+        </div>
       </div>
       <div className="relative z-10">
-        <span className="text-3xl font-bold text-white">{value}</span>
-        <div className="mt-2 text-sm">
-          <span className={isPositive ? "text-green-400" : "text-red-400"}>{change}</span>
-          <span className="text-slate-500 ml-2">from last month</span>
-        </div>
+        <span className="text-3xl font-bold text-foreground">
+          {value.toLocaleString()}
+        </span>
+        <p className="mt-2 text-sm text-foreground/50">{subtitle}</p>
       </div>
     </div>
   );

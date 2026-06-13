@@ -1,0 +1,52 @@
+# KOORAKIT (World Cup 2026 platform) — local / self-hosted stack.
+# App (Next.js standalone) + PostgreSQL 16 (Req 9.5).
+# Usage: docker compose up --build  (run from the platform/ directory)
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    # App-level config (NEXTAUTH_*, GOOGLE_*, GA4/GTM, optional Redis) comes
+    # from .env; DATABASE_URL is overridden below to point at the db service.
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://koorakit:koorakit@db:5432/koorakit?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - koorakit
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: koorakit
+      POSTGRES_PASSWORD: koorakit
+      POSTGRES_DB: koorakit
+    ports:
+      - "5432:5432"
+    volumes:
+      - koorakit-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U koorakit -d koorakit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - koorakit
+
+volumes:
+  koorakit-db:
+    driver: local
+
+networks:
+  koorakit:
+    driver: bridge
