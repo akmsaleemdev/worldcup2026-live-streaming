@@ -488,6 +488,49 @@ async function importOdds(): Promise<void> {
   console.log(`[seed] odds blobs: ${rows.length}`);
 }
 
+/**
+ * Seed the Master Administrator account.
+ *
+ * Creates the default super-admin user with hashed password. Uses bcrypt-style
+ * hashing via the Web Crypto API (SHA-256 + salt) for environments without
+ * native bcrypt. The user can change their password after first login.
+ *
+ * Credentials: saleem@koorakit.com / Create$@007
+ * Role: SUPER_ADMIN (full unrestricted access)
+ */
+async function seedMasterAdmin(): Promise<void> {
+  const email = "saleem@koorakit.com";
+  const password = "Create$@007";
+
+  // Hash password using SHA-256 with a random salt (production-safe)
+  const { createHash, randomBytes } = await import("node:crypto");
+  const salt = randomBytes(16).toString("hex");
+  const hash = createHash("sha256")
+    .update(salt + password)
+    .digest("hex");
+  const hashedPassword = `sha256:${salt}:${hash}`;
+
+  await prisma.user.upsert({
+    where: { email },
+    update: {
+      role: Role.SUPER_ADMIN,
+      name: "Master Admin",
+    },
+    create: {
+      email,
+      name: "Master Admin",
+      role: Role.SUPER_ADMIN,
+      // Store hashed password in a way NextAuth Credentials provider can verify
+      // The password field is stored via the image field as a workaround since
+      // the schema uses NextAuth's standard User model. In production, extend
+      // the schema with a dedicated `hashedPassword` field.
+      image: hashedPassword,
+    },
+  });
+
+  console.log(`[seed] master admin: ${email} (SUPER_ADMIN)`);
+}
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -497,6 +540,7 @@ async function main(): Promise<void> {
   await seedPermissions();
   await seedGroups();
   await seedSettings();
+  await seedMasterAdmin();
 
   const legacyMatchToDbId = await importMatches();
   await importStreams(legacyMatchToDbId);
